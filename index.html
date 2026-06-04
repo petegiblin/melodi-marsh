@@ -180,83 +180,98 @@
 
 <script>
 (function () {
-  var FEED = "https://feeds.behold.so/0uNWfXV0shwITWAByBnL";
+  var BEHOLD = "https://feeds.behold.so/0uNWfXV0shwITWAByBnL";
   var wall = document.getElementById('wall');
 
-  fetch(FEED)
-    .then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
-    .then(function (data) {
-      var posts = (data && data.posts) || [];
-      if (!posts.length) return showError();
-
-      // Skip near-black covers — e.g. a reel whose auto-grabbed first frame is
-      // solid black — so they don't punch a hole in the wall. (Set a custom
-      // cover for that reel in Instagram and it returns automatically.)
-      // Safety net: keep everything if the filter would leave too few tiles.
-      function luma(p){
-        var d = ((p.colorPalette && p.colorPalette.dominant) || '128,128,128').split(',').map(Number);
-        return 0.299 * d[0] + 0.587 * d[1] + 0.114 * d[2];
-      }
-      var visible = posts.filter(function (p) { return luma(p) >= 22; });
-      if (visible.length < 3) visible = posts;
-
-      var frag = document.createDocumentFragment();
-
-      visible.forEach(function (p) {
-        var large  = (p.sizes && p.sizes.large) || {};
-        var dims   = large.uncropped || { width: 4, height: 5 };
-        var colour = (p.colorPalette && p.colorPalette.dominant) || '17,17,17';
-        var isVid  = p.mediaType === 'VIDEO' || p.isReel;
-
-        // native-ratio source (video poster or original photo); Behold's cached
-        // square copy is the never-expires fallback.
-        var native = isVid ? (p.thumbnailUrl || large.mediaUrl) : (p.mediaUrl || large.mediaUrl);
-        var stable = large.mediaUrl || native;
-
-        var a = document.createElement('a');
-        a.className = 'tile';
-        a.href = p.permalink || 'https://www.instagram.com/melodi.marsh/';
-        a.target = '_blank';
-        a.rel = 'noopener';
-        a.style.aspectRatio = dims.width + ' / ' + dims.height;
-        a.style.background = 'rgb(' + colour + ')';
-
-        var img = new Image();
-        img.loading = 'eager';        // only ~6 images — load the whole wall up front
-        img.decoding = 'async';
-        img.referrerPolicy = 'no-referrer';
-        img.alt = (p.prunedCaption || 'Melodi Marsh').slice(0, 80);
-        img.onload = function () { img.classList.add('loaded'); };
-        img.onerror = function () {
-          // Instagram URL expired? swap to Behold's stable cached image once.
-          if (stable && img.src.indexOf('behold.pictures') === -1) { img.src = stable; }
-          else { img.classList.add('loaded'); }
-        };
-        img.src = native;
-        a.appendChild(img);
-
-        if (isVid) {
-          var play = document.createElement('span');
-          play.className = 'play';
-          play.textContent = '▶';
-          a.appendChild(play);
-        }
-
-        var cap = (p.prunedCaption || '').trim();
-        if (cap) {
-          var t = document.createElement('span');
-          t.className = 'title';
-          t.textContent = cap.length > 72 ? cap.slice(0, 72).trim() + '…' : cap;
-          a.appendChild(t);
-        }
-
-        frag.appendChild(a);
-      });
-
-      wall.appendChild(frag);
-      wall.removeAttribute('aria-busy');
+  // Prefer our self-hosted full feed (feed.json, built from Instagram's API by
+  // the GitHub Action in .github/). Fall back to Behold's live feed (free tier
+  // = 6 posts) whenever feed.json isn't there yet, so the wall never breaks.
+  // Both sources are mapped to one normalised post shape before rendering.
+  fetch('feed.json', { cache: 'no-store' })
+    .then(function (r) { if (!r.ok) throw 0; return r.json(); })
+    .then(function (posts) { if (!Array.isArray(posts) || !posts.length) throw 0; return posts; })
+    .catch(function () {
+      return fetch(BEHOLD)
+        .then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
+        .then(beholdToPosts);
     })
+    .then(render)
     .catch(showError);
+
+  // Map Behold's payload to our normalised shape (used only for the fallback).
+  function beholdToPosts(data) {
+    return ((data && data.posts) || []).map(function (p) {
+      var large = (p.sizes && p.sizes.large) || {};
+      var dims  = large.uncropped || {};
+      var isVid = p.mediaType === 'VIDEO' || p.isReel;
+      return {
+        image:     isVid ? (p.thumbnailUrl || large.mediaUrl) : (p.mediaUrl || large.mediaUrl),
+        fallback:  large.mediaUrl || null,      // Behold's never-expiring cached copy
+        permalink: p.permalink || null,
+        caption:   p.prunedCaption || '',
+        isVideo:   !!isVid,
+        width:     dims.width || null,
+        height:    dims.height || null,
+        color:     (p.colorPalette && p.colorPalette.dominant) || null
+      };
+    });
+  }
+
+  // Normalised post shape: { image, fallback?, permalink, caption, isVideo, width?, height?, color? }
+  function render(posts) {
+    // Drop near-black auto-covers when we know the colour (keeps holes out of
+    // the wall); never filter below 3 tiles.
+    var visible = posts.filter(function (p) { return !p.color || luma(p.color) >= 22; });
+    if (visible.length < 3) visible = posts;
+    if (!visible.length) return showError();
+
+    var frag = document.createDocumentFragment();
+    visible.forEach(function (p) {
+      var a = document.createElement('a');
+      a.className = 'tile';
+      a.href = p.permalink || 'https://www.instagram.com/melodi.marsh/';
+      a.target = '_blank';
+      a.rel = 'noopener';
+      if (p.width && p.height) a.style.aspectRatio = p.width + ' / ' + p.height;
+      a.style.background = p.color ? ('rgb(' + p.color + ')') : '#e7e4df';
+
+      var img = new Image();
+      img.loading = 'lazy';
+      img.decoding = 'async';
+      img.referrerPolicy = 'no-referrer';
+      img.alt = (p.caption || 'Melodi Marsh').slice(0, 80);
+      img.onload = function () { img.classList.add('loaded'); };
+      img.onerror = function () {
+        if (p.fallback && img.src.indexOf(p.fallback) === -1) { img.src = p.fallback; }
+        else { img.classList.add('loaded'); }
+      };
+      if (!(p.width && p.height)) img.style.height = 'auto';   // native ratio when dims unknown
+      img.src = p.image;
+      a.appendChild(img);
+
+      if (p.isVideo) {
+        var play = document.createElement('span');
+        play.className = 'play';
+        play.textContent = '▶';
+        a.appendChild(play);
+      }
+      var cap = (p.caption || '').trim();
+      if (cap) {
+        var t = document.createElement('span');
+        t.className = 'title';
+        t.textContent = cap.length > 72 ? cap.slice(0, 72).trim() + '…' : cap;
+        a.appendChild(t);
+      }
+      frag.appendChild(a);
+    });
+    wall.appendChild(frag);
+    wall.removeAttribute('aria-busy');
+  }
+
+  function luma(c) {
+    var d = String(c).split(',').map(Number);
+    return 0.299 * d[0] + 0.587 * d[1] + 0.114 * d[2];
+  }
 
   function showError() {
     wall.removeAttribute('aria-busy');

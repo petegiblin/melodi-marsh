@@ -1,0 +1,45 @@
+name: Refresh Instagram feed
+
+# Pulls Melodi's latest Instagram posts via the official Instagram API, downloads
+# the images into the repo (so they never expire), and writes feed.json — which
+# the site reads. Until the IG_TOKEN secret is set, this no-ops and the site
+# keeps falling back to Behold's free 6 posts.
+
+on:
+  schedule:
+    - cron: "17 */6 * * *"   # every 6 hours
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+concurrency:
+  group: refresh-instagram
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Fetch Instagram posts
+        env:
+          IG_TOKEN: ${{ secrets.IG_TOKEN }}
+        run: node .github/scripts/fetch-instagram.mjs
+
+      - name: Commit feed if it changed
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "No feed changes."
+          else
+            git commit -m "Refresh Instagram feed [skip ci]"
+            git push
+          fi
