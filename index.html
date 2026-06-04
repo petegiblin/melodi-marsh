@@ -5,9 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Melodi Marsh</title>
 
-<!-- Behold widget engine — required, leave in place -->
-<script type="module" src="https://w.behold.so/widget.js"></script>
-
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Archivo:wght@400;500&display=swap');
 
@@ -39,46 +36,69 @@
   nav a{ color:inherit; text-decoration:none; font-size:11px; letter-spacing:0.1em; transition:opacity .2s; }
   nav a:hover{ opacity:0.5; }
 
-  /* ---------- MASONRY: columns, native aspect ratios ---------- */
-  /* CSS columns give the flowing, uneven-height wall that C&O has. */
+  /* ---------- MASONRY WALL ----------
+     CSS columns give the uneven, flowing wall C&O has. Tiles keep their
+     NATIVE aspect ratio (set per-tile from the post's real dimensions),
+     so nothing is square-cropped. */
   .feed{ padding:0; }
-  behold-widget{ display:block; width:100%; }
-
-  .stand-in{
-    column-count:4;
+  .wall{
+    column-count:3;
     column-gap:var(--gap);
     padding:0;
   }
-  @media(max-width:1100px){ .stand-in{ column-count:3; } }
-  @media(max-width:700px){  .stand-in{ column-count:2; } }
-  @media(max-width:440px){  .stand-in{ column-count:1; } }
+  @media(max-width:900px){ .wall{ column-count:2; } }
+  @media(max-width:560px){ .wall{ column-count:1; } }
 
   .tile{
     position:relative;
+    display:block;
     break-inside:avoid;
     margin-bottom:var(--gap);
     overflow:hidden;
-    background:#111;
-    display:block;
+    background:#111;                 /* swapped for the post's dominant colour via JS */
+    text-decoration:none;
+    color:#fff;
   }
-  .tile video,.tile img{
-    width:100%; height:auto; display:block;   /* native ratio = varied heights */
-    filter:grayscale(12%);
-    transition:transform .6s ease, filter .6s ease;
+  .tile img{
+    width:100%; height:100%; display:block;
+    object-fit:cover;
+    opacity:0;
+    filter:grayscale(14%);
+    transition:opacity .7s ease, transform .65s ease, filter .65s ease;
   }
-  .tile:hover video,.tile:hover img{ transform:scale(1.03); filter:grayscale(0%); }
+  .tile img.loaded{ opacity:1; }
+  .tile:hover img{ transform:scale(1.035); filter:grayscale(0%); }
 
+  /* reel / video marker */
+  .tile .play{
+    position:absolute; top:11px; right:11px;
+    width:24px; height:24px; border-radius:50%;
+    display:flex; align-items:center; justify-content:center;
+    font-size:8px; color:#fff; padding-left:2px;
+    background:rgba(0,0,0,0.32);
+    -webkit-backdrop-filter:blur(2px); backdrop-filter:blur(2px);
+    opacity:0.7; transition:opacity .3s;
+  }
+  .tile:hover .play{ opacity:0.95; }
+
+  /* hover-reveal caption */
   .tile .title{
     position:absolute; left:0; right:0; bottom:0;
-    padding:14px;
+    padding:16px 14px 13px;
     color:#fff;
     text-transform:uppercase;
-    font-size:10px; letter-spacing:0.12em;
+    font-size:10px; letter-spacing:0.11em; line-height:1.55;
     opacity:0; transform:translateY(6px);
-    transition:opacity .25s, transform .25s;
-    background:linear-gradient(transparent, rgba(0,0,0,0.6));
+    transition:opacity .28s, transform .28s;
+    background:linear-gradient(transparent, rgba(0,0,0,0.66));
   }
   .tile:hover .title{ opacity:1; transform:translateY(0); }
+
+  .feed-error{
+    padding:90px 16px; text-align:center; color:#999;
+    text-transform:uppercase; letter-spacing:0.12em; font-size:11px;
+  }
+  .feed-error a{ color:var(--ink); border-bottom:1px solid var(--ink); text-decoration:none; }
 
   /* ---------- INFO STRIP ---------- */
   .info{
@@ -113,10 +133,9 @@
 
 <main>
   <section class="feed">
-
-    <!-- LIVE INSTAGRAM FEED — pulls @melodi.marsh's latest posts (real feed) -->
-    <behold-widget feed-id="0uNWfXV0shwITWAByBnL"></behold-widget>
-
+    <!-- Live Instagram wall: data pulled from Behold's feed API, rendered as a
+         native-aspect-ratio masonry (see script at end of body). -->
+    <div id="wall" class="wall" aria-busy="true"></div>
   </section>
 
   <section id="info" class="info">
@@ -136,6 +155,95 @@
   <span>© Melodi Marsh 2026</span>
   <a href="https://www.instagram.com/melodi.marsh/" target="_blank" rel="noopener">@melodi.marsh</a>
 </footer>
+
+<script>
+(function () {
+  var FEED = "https://feeds.behold.so/0uNWfXV0shwITWAByBnL";
+  var wall = document.getElementById('wall');
+
+  fetch(FEED)
+    .then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
+    .then(function (data) {
+      var posts = (data && data.posts) || [];
+      if (!posts.length) return showError();
+
+      // Skip near-black covers — e.g. a reel whose auto-grabbed first frame is
+      // solid black — so they don't punch a hole in the wall. (Set a custom
+      // cover for that reel in Instagram and it returns automatically.)
+      // Safety net: keep everything if the filter would leave too few tiles.
+      function luma(p){
+        var d = ((p.colorPalette && p.colorPalette.dominant) || '128,128,128').split(',').map(Number);
+        return 0.299 * d[0] + 0.587 * d[1] + 0.114 * d[2];
+      }
+      var visible = posts.filter(function (p) { return luma(p) >= 22; });
+      if (visible.length < 3) visible = posts;
+
+      var frag = document.createDocumentFragment();
+
+      visible.forEach(function (p) {
+        var large  = (p.sizes && p.sizes.large) || {};
+        var dims   = large.uncropped || { width: 4, height: 5 };
+        var colour = (p.colorPalette && p.colorPalette.dominant) || '17,17,17';
+        var isVid  = p.mediaType === 'VIDEO' || p.isReel;
+
+        // native-ratio source (video poster or original photo); Behold's cached
+        // square copy is the never-expires fallback.
+        var native = isVid ? (p.thumbnailUrl || large.mediaUrl) : (p.mediaUrl || large.mediaUrl);
+        var stable = large.mediaUrl || native;
+
+        var a = document.createElement('a');
+        a.className = 'tile';
+        a.href = p.permalink || 'https://www.instagram.com/melodi.marsh/';
+        a.target = '_blank';
+        a.rel = 'noopener';
+        a.style.aspectRatio = dims.width + ' / ' + dims.height;
+        a.style.background = 'rgb(' + colour + ')';
+
+        var img = new Image();
+        img.loading = 'eager';        // only ~6 images — load the whole wall up front
+        img.decoding = 'async';
+        img.referrerPolicy = 'no-referrer';
+        img.alt = (p.prunedCaption || 'Melodi Marsh').slice(0, 80);
+        img.onload = function () { img.classList.add('loaded'); };
+        img.onerror = function () {
+          // Instagram URL expired? swap to Behold's stable cached image once.
+          if (stable && img.src.indexOf('behold.pictures') === -1) { img.src = stable; }
+          else { img.classList.add('loaded'); }
+        };
+        img.src = native;
+        a.appendChild(img);
+
+        if (isVid) {
+          var play = document.createElement('span');
+          play.className = 'play';
+          play.textContent = '▶';
+          a.appendChild(play);
+        }
+
+        var cap = (p.prunedCaption || '').trim();
+        if (cap) {
+          var t = document.createElement('span');
+          t.className = 'title';
+          t.textContent = cap.length > 72 ? cap.slice(0, 72).trim() + '…' : cap;
+          a.appendChild(t);
+        }
+
+        frag.appendChild(a);
+      });
+
+      wall.appendChild(frag);
+      wall.removeAttribute('aria-busy');
+    })
+    .catch(showError);
+
+  function showError() {
+    wall.removeAttribute('aria-busy');
+    wall.className = '';
+    wall.innerHTML = '<p class="feed-error">Feed momentarily unavailable — ' +
+      '<a href="https://www.instagram.com/melodi.marsh/" target="_blank" rel="noopener">view on Instagram</a></p>';
+  }
+})();
+</script>
 
 </body>
 </html>
