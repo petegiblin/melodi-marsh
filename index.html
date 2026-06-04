@@ -11,7 +11,7 @@
   :root{
     --bg:#ffffff;
     --ink:#0c0c0c;
-    --gap:6px;
+    --gap:30px;
   }
   *{box-sizing:border-box;margin:0;padding:0;}
   html,body{background:var(--bg);color:var(--ink);}
@@ -61,7 +61,7 @@
   .wall{
     column-count:3;
     column-gap:var(--gap);
-    padding:0;
+    padding:var(--gap) var(--gap) 0;
   }
   @media(max-width:900px){ .wall{ column-count:2; } }
   @media(max-width:560px){ .wall{ column-count:1; } }
