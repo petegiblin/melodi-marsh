@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Melodi Marsh</title>
+
+<!-- Behold widget engine — required, leave in place -->
+<script type="module" src="https://w.behold.so/widget.js"></script>
+
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Archivo:wght@400;500&display=swap');
+
+  :root{
+    --bg:#ffffff;
+    --ink:#0c0c0c;
+    --gap:6px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  html,body{background:var(--bg);color:var(--ink);}
+  body{
+    font-family:'Archivo',-apple-system,sans-serif;
+    font-size:12px;
+    letter-spacing:0.06em;
+    -webkit-font-smoothing:antialiased;
+  }
+
+  /* ---------- NAV ---------- */
+  header{
+    position:fixed; top:0; left:0; right:0;
+    display:flex; align-items:center; justify-content:space-between;
+    padding:14px 16px;
+    mix-blend-mode:difference;
+    color:#fff; z-index:100;
+    text-transform:uppercase;
+  }
+  .brand{ font-weight:500; font-size:13px; letter-spacing:0.04em; }
+  nav{ display:flex; gap:22px; }
+  nav a{ color:inherit; text-decoration:none; font-size:11px; letter-spacing:0.1em; transition:opacity .2s; }
+  nav a:hover{ opacity:0.5; }
+
+  /* ---------- MASONRY: columns, native aspect ratios ---------- */
+  /* CSS columns give the flowing, uneven-height wall that C&O has. */
+  .feed{ padding:0; }
+  behold-widget{ display:block; width:100%; }
+
+  .stand-in{
+    column-count:4;
+    column-gap:var(--gap);
+    padding:0;
+  }
+  @media(max-width:1100px){ .stand-in{ column-count:3; } }
+  @media(max-width:700px){  .stand-in{ column-count:2; } }
+  @media(max-width:440px){  .stand-in{ column-count:1; } }
+
+  .tile{
+    position:relative;
+    break-inside:avoid;
+    margin-bottom:var(--gap);
+    overflow:hidden;
+    background:#111;
+    display:block;
+  }
+  .tile video,.tile img{
+    width:100%; height:auto; display:block;   /* native ratio = varied heights */
+    filter:grayscale(12%);
+    transition:transform .6s ease, filter .6s ease;
+  }
+  .tile:hover video,.tile:hover img{ transform:scale(1.03); filter:grayscale(0%); }
+
+  .tile .title{
+    position:absolute; left:0; right:0; bottom:0;
+    padding:14px;
+    color:#fff;
+    text-transform:uppercase;
+    font-size:10px; letter-spacing:0.12em;
+    opacity:0; transform:translateY(6px);
+    transition:opacity .25s, transform .25s;
+    background:linear-gradient(transparent, rgba(0,0,0,0.6));
+  }
+  .tile:hover .title{ opacity:1; transform:translateY(0); }
+
+  /* ---------- INFO STRIP ---------- */
+  .info{
+    display:flex; flex-wrap:wrap; gap:30px;
+    padding:60px 16px;
+    text-transform:uppercase; font-size:11px; letter-spacing:0.1em;
+    border-top:1px solid rgba(0,0,0,0.08);
+    margin-top:var(--gap);
+  }
+  .info div{ max-width:340px; line-height:1.9; }
+  .info h3{ font-size:11px; letter-spacing:0.16em; margin-bottom:10px; color:#999; }
+  .info a{ color:var(--ink); text-decoration:none; border-bottom:1px solid var(--ink); }
+
+  footer{
+    display:flex; justify-content:space-between;
+    padding:18px 16px;
+    text-transform:uppercase; font-size:10px; letter-spacing:0.12em; color:#999;
+  }
+  footer a{ color:inherit; text-decoration:none; }
+  footer a:hover{ color:var(--ink); }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">Melodi Marsh</div>
+  <nav>
+    <a href="#info">Info</a>
+    <a href="https://www.instagram.com/melodi.marsh/" target="_blank" rel="noopener">Instagram</a>
+  </nav>
+</header>
+
+<main>
+  <section class="feed">
+
+    <!-- LIVE INSTAGRAM FEED — pulls @melodi.marsh's latest posts -->
+    <behold-widget feed-id="dVGZomcd1OqIlC8DZieJ"></behold-widget>
+
+  </section>
+
+  <section id="info" class="info">
+    <div>
+      <h3>About</h3>
+      [ Replace with her bio — a few lines on her work, themes, and where she's performed. ]
+    </div>
+    <div>
+      <h3>Bookings</h3>
+      Performance · Features · Workshops · Commissions<br><br>
+      <a href="mailto:hello@melodimarsh.com">hello@melodimarsh.com</a>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <span>© Melodi Marsh 2026</span>
+  <a href="https://www.instagram.com/melodi.marsh/" target="_blank" rel="noopener">@melodi.marsh</a>
+</footer>
+
+</body>
+</html>
