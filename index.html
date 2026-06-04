@@ -36,6 +36,23 @@
   nav a{ color:inherit; text-decoration:none; font-size:11px; letter-spacing:0.1em; transition:opacity .2s; }
   nav a:hover{ opacity:0.5; }
 
+  /* ---------- HERO / LEAD IMAGE ----------
+     Full-viewport portrait that greets the visitor (à la Crowns & Owls) and
+     covers the brief moment while the feed below fetches. */
+  .hero{
+    width:100%;
+    height:100svh;
+    min-height:540px;
+    overflow:hidden;
+    background:#e7e4df;
+  }
+  .hero img{
+    width:100%; height:100%;
+    object-fit:cover;
+    object-position:50% 30%;   /* keep her face in frame when cropped wide */
+    display:block;
+  }
+
   /* ---------- MASONRY WALL ----------
      CSS columns give the uneven, flowing wall C&O has. Tiles keep their
      NATIVE aspect ratio (set per-tile from the post's real dimensions),
@@ -110,6 +127,7 @@
   }
   .info div{ max-width:340px; line-height:1.9; }
   .info h3{ font-size:11px; letter-spacing:0.16em; margin-bottom:10px; color:#999; }
+  .info .bio{ text-transform:none; font-size:12.5px; letter-spacing:0.01em; line-height:1.75; color:var(--ink); }
   .info a{ color:var(--ink); text-decoration:none; border-bottom:1px solid var(--ink); }
 
   footer{
@@ -132,6 +150,10 @@
 </header>
 
 <main>
+  <section class="hero">
+    <img src="hero.jpg" alt="Melodi Marsh" />
+  </section>
+
   <section class="feed">
     <!-- Live Instagram wall: data pulled from Behold's feed API, rendered as a
          native-aspect-ratio masonry (see script at end of body). -->
@@ -141,7 +163,7 @@
   <section id="info" class="info">
     <div>
       <h3>About</h3>
-      [ Replace with her bio — a few lines on her work, themes, and where she's performed. ]
+      <p class="bio">Melodi Marsh is a spoken-word artist exploring the depths of our being. She turns identity, longing and the thresholds in between into verse made to be heard aloud — intimate, unguarded, and alive across stage, page and screen.</p>
     </div>
     <div>
       <h3>Bookings</h3>
