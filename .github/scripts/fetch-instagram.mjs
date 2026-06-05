@@ -1,13 +1,14 @@
-// Fetch Melodi's Instagram posts via the Instagram Graph API, download each
-// post's display image into media/ (so URLs never expire), and write feed.json
-// in the shape the site's renderer expects.
+// Fetch Melodi's Instagram posts via the Instagram API, download each post's
+// display image into media/ (so URLs never expire), compute its dimensions +
+// average colour, and write feed.json (the site reads it).
 //
-// No IG_TOKEN? -> no-op exit 0 (the site falls back to Behold's free 6 posts).
-// Token lapses later? The already-committed images + feed.json keep serving;
-// the feed just stops updating until the token is refreshed. Nothing breaks.
+// - Paginates to pull her whole archive (up to MAX_POSTS).
+// - Average colour lets the renderer auto-hide near-black auto-cover frames.
+// - No IG_TOKEN? -> no-op exit 0 (site falls back to Behold's free 6 posts).
 
 import { writeFile, mkdir, readdir, rm } from "node:fs/promises";
 import path from "node:path";
+import sharp from "sharp";
 
 const TOKEN = process.env.IG_TOKEN;
 if (!TOKEN) {
@@ -15,41 +16,21 @@ if (!TOKEN) {
   process.exit(0);
 }
 
-const LIMIT = 50; // plenty; raise + paginate later if she ever needs more
+const MAX_POSTS = 250; // safety cap so the repo can't balloon
 const FIELDS = "id,caption,media_type,media_url,thumbnail_url,permalink,timestamp,children{media_url}";
 const MEDIA_DIR = "media";
 
-async function fetchMedia() {
-  const url = `https://graph.instagram.com/me/media?fields=${FIELDS}&limit=${LIMIT}&access_token=${TOKEN}`;
-  const res = await fetch(url);
-  if (!res.ok) throw new Error(`Instagram API ${res.status}: ${(await res.text()).slice(0, 300)}`);
-  return (await res.json()).data || [];
-}
-
-// --- dependency-free image dimension readers (JPEG + PNG) --------------------
-function jpegSize(buf) {
-  let i = 2;
-  while (i + 9 < buf.length) {
-    if (buf[i] !== 0xff) { i++; continue; }
-    const marker = buf[i + 1];
-    if (marker === 0xff) { i++; continue; }                       // padding
-    if (marker === 0x01 || (marker >= 0xd0 && marker <= 0xd9)) { i += 2; continue; } // standalone
-    const len = buf.readUInt16BE(i + 2);
-    if (marker >= 0xc0 && marker <= 0xcf && marker !== 0xc4 && marker !== 0xc8 && marker !== 0xcc)
-      return { height: buf.readUInt16BE(i + 5), width: buf.readUInt16BE(i + 7) };
-    i += 2 + len;
+async function fetchAll() {
+  let url = `https://graph.instagram.com/me/media?fields=${FIELDS}&limit=50&access_token=${TOKEN}`;
+  const all = [];
+  while (url && all.length < MAX_POSTS) {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`Instagram API ${res.status}: ${(await res.text()).slice(0, 300)}`);
+    const json = await res.json();
+    all.push(...(json.data || []));
+    url = json.paging?.next || null;
   }
-  return null;
-}
-function pngSize(buf) {
-  if (buf.length > 24 && buf.toString("ascii", 12, 16) === "IHDR")
-    return { width: buf.readUInt32BE(16), height: buf.readUInt32BE(20) };
-  return null;
-}
-function imageSize(buf) {
-  if (buf[0] === 0xff && buf[1] === 0xd8) return jpegSize(buf);
-  if (buf[0] === 0x89 && buf[1] === 0x50) return pngSize(buf);
-  return null;
+  return all.slice(0, MAX_POSTS);
 }
 
 async function download(url) {
@@ -58,8 +39,7 @@ async function download(url) {
   return Buffer.from(await res.arrayBuffer());
 }
 
-// --- main --------------------------------------------------------------------
-const media = await fetchMedia();
+const media = await fetchAll();
 await mkdir(MEDIA_DIR, { recursive: true });
 
 const posts = [];
@@ -73,10 +53,16 @@ for (const m of media) {
   if (!srcUrl) { console.warn(`skip ${m.id}: no image url`); continue; }
 
   const file = `${m.id}.jpg`;
-  let dims = null;
+  let width = null, height = null, color = null;
   try {
     const buf = await download(srcUrl);
-    dims = imageSize(buf);
+    const img = sharp(buf);
+    const meta = await img.metadata();
+    width = meta.width || null;
+    height = meta.height || null;
+    const ch = (await img.stats()).channels;
+    if (ch?.length >= 3) color = `${Math.round(ch[0].mean)},${Math.round(ch[1].mean)},${Math.round(ch[2].mean)}`;
+    else if (ch?.length >= 1) { const v = Math.round(ch[0].mean); color = `${v},${v},${v}`; }
     await writeFile(path.join(MEDIA_DIR, file), buf);
     keep.add(file);
   } catch (e) {
@@ -89,8 +75,9 @@ for (const m of media) {
     permalink: m.permalink || null,
     caption: (m.caption || "").replace(/\s+/g, " ").trim().slice(0, 140),
     isVideo,
-    width: dims?.width ?? null,
-    height: dims?.height ?? null,
+    width,
+    height,
+    color,
   });
 }
 
@@ -99,10 +86,10 @@ if (!posts.length) {
   process.exit(0);
 }
 
-// prune images for posts that dropped out of the latest set
+// prune images for posts that dropped out of the set
 for (const f of await readdir(MEDIA_DIR)) {
   if (!keep.has(f)) await rm(path.join(MEDIA_DIR, f));
 }
 
 await writeFile("feed.json", JSON.stringify(posts) + "\n");
-console.log(`Wrote feed.json with ${posts.length} posts; ${keep.size} images in ${MEDIA_DIR}/.`);
+console.log(`Wrote feed.json with ${posts.length} posts; ${keep.size} images. Near-black covers auto-hidden by the renderer.`);

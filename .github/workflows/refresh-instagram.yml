@@ -30,7 +30,9 @@ jobs:
       - name: Fetch Instagram posts
         env:
           IG_TOKEN: ${{ secrets.IG_TOKEN }}
-        run: node .github/scripts/fetch-instagram.mjs
+        run: |
+          npm install sharp --no-audit --no-fund --silent
+          node .github/scripts/fetch-instagram.mjs
 
       - name: Commit feed if it changed
         run: |
