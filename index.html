@@ -94,15 +94,16 @@
   @media(max-width:760px){
     .wall .tile{ width:88% !important; margin:0 auto 7vh !important; }
   }
-  .tile img{
+  .tile .tilemedia{
     width:100%; height:100%; display:block;
     object-fit:cover;
+    background:transparent;
     opacity:0;
     filter:grayscale(14%);
     transition:opacity .7s ease, transform .65s ease, filter .65s ease;
   }
-  .tile img.loaded{ opacity:1; }
-  .tile:hover img{ transform:scale(1.035); filter:grayscale(0%); }
+  .tile .tilemedia.loaded{ opacity:1; }
+  .tile:hover .tilemedia{ transform:scale(1.035); filter:grayscale(0%); }
 
   /* reel / video marker */
   .tile .play{
@@ -134,6 +135,32 @@
     text-transform:uppercase; letter-spacing:0.12em; font-size:11px;
   }
   .feed-error a{ color:var(--ink); border-bottom:1px solid var(--ink); text-decoration:none; }
+
+  /* ---------- LIGHTBOX (view / play a post on the site) ---------- */
+  body.lb-open{ overflow:hidden; }
+  .lb{
+    position:fixed; inset:0; z-index:1000;
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    gap:20px; padding:6vh 4vw;
+    background:rgba(8,8,8,0.95);
+    -webkit-backdrop-filter:blur(4px); backdrop-filter:blur(4px);
+  }
+  .lb[hidden]{ display:none; }
+  .lb-stage{ display:flex; align-items:center; justify-content:center; max-width:92vw; max-height:76vh; }
+  .lb-stage img, .lb-stage video{
+    max-width:92vw; max-height:76vh; width:auto; height:auto; display:block;
+    box-shadow:0 12px 64px rgba(0,0,0,0.55);
+  }
+  .lb-close{
+    position:absolute; top:16px; right:20px;
+    background:none; border:0; color:#fff; font-size:22px; line-height:1;
+    cursor:pointer; opacity:0.75; transition:opacity .2s;
+  }
+  .lb-close:hover{ opacity:1; }
+  .lb-meta{ max-width:640px; text-align:center; color:#e8e8e8; }
+  .lb-cap{ font-size:13px; line-height:1.65; letter-spacing:0.02em; margin-bottom:12px; }
+  .lb-ig{ color:#aaa; text-transform:uppercase; font-size:10px; letter-spacing:0.14em; text-decoration:none; border-bottom:1px solid #555; }
+  .lb-ig:hover{ color:#fff; }
 
   /* ---------- INFO STRIP ---------- */
   .info{
@@ -187,6 +214,15 @@
   <a href="https://www.instagram.com/melodi.marsh/" target="_blank" rel="noopener">@melodi.marsh</a>
 </footer>
 
+<div id="lightbox" class="lb" hidden>
+  <button class="lb-close" aria-label="Close">✕</button>
+  <div class="lb-stage"></div>
+  <div class="lb-meta">
+    <p class="lb-cap"></p>
+    <a class="lb-ig" target="_blank" rel="noopener">View on Instagram ↗</a>
+  </div>
+</div>
+
 <script>
 (function () {
   var BEHOLD = "https://feeds.behold.so/0uNWfXV0shwITWAByBnL";
@@ -215,6 +251,7 @@
       var isVid = p.mediaType === 'VIDEO' || p.isReel;
       return {
         image:     isVid ? (p.thumbnailUrl || large.mediaUrl) : (p.mediaUrl || large.mediaUrl),
+        video:     isVid ? (p.mediaUrl || null) : null,
         fallback:  large.mediaUrl || null,      // Behold's never-expiring cached copy
         permalink: p.permalink || null,
         caption:   p.prunedCaption || '',
@@ -226,7 +263,40 @@
     });
   }
 
-  // Normalised post shape: { image, fallback?, permalink, caption, isVideo, width?, height?, color? }
+  // Silent autoplay for videos that are on-screen (keeps a 100+ post wall light).
+  var wallVideos = [];
+  function playVid(v) {
+    var p = v.play();
+    if (p && p.then) p.then(null, function () {
+      // early play() can be aborted by the in-flight load — retry once it's ready
+      setTimeout(function () { var q = v.play(); if (q && q.catch) q.catch(function () {}); }, 250);
+    });
+  }
+  function syncVideos() {
+    var vh = window.innerHeight || document.documentElement.clientHeight;
+    for (var i = 0; i < wallVideos.length; i++) {
+      var v = wallVideos[i], r = v.getBoundingClientRect();
+      if (r.height > 0 && r.bottom > -250 && r.top < vh + 250) {
+        if (!v.dataset.armed) {
+          v.dataset.armed = '1';
+          v.poster = v.dataset.poster;
+          v.src = v.dataset.src;
+          v.addEventListener('canplay', function () { playVid(this); }, { once: true });
+          v.load();
+        } else if (v.paused) {
+          playVid(v);
+        }
+      } else if (!v.paused) {
+        v.pause();
+      }
+    }
+  }
+  var vTicking = false;
+  function onScrollResize() { if (!vTicking) { vTicking = true; requestAnimationFrame(function () { vTicking = false; syncVideos(); }); } }
+  window.addEventListener('scroll', onScrollResize, { passive: true });
+  window.addEventListener('resize', onScrollResize);
+
+  // Normalised post: { image, video?, fallback?, permalink, caption, isVideo, width?, height?, color? }
   function render(posts) {
     // Drop near-black auto-covers when we know the colour (keeps holes out of
     // the wall); never filter below 3 tiles.
@@ -237,26 +307,37 @@
     var frag = document.createDocumentFragment();
     visible.forEach(function (p) {
       var a = document.createElement('a');
-      a.className = 'tile';
+      a.className = 'tile' + (p.isVideo ? ' is-video' : '');
       a.href = p.permalink || 'https://www.instagram.com/melodi.marsh/';
-      a.target = '_blank';
       a.rel = 'noopener';
-      if (p.width && p.height) a.style.aspectRatio = p.width + ' / ' + p.height;
+      a.style.aspectRatio = (p.width && p.height) ? (p.width + ' / ' + p.height) : '4 / 5';
       a.style.background = p.color ? ('rgb(' + p.color + ')') : '#e7e4df';
+      a.addEventListener('click', function (ev) { ev.preventDefault(); openLightbox(p); });
 
-      var img = new Image();
-      img.loading = 'lazy';
-      img.decoding = 'async';
-      img.referrerPolicy = 'no-referrer';
-      img.alt = (p.caption || 'Melodi Marsh').slice(0, 80);
-      img.onload = function () { img.classList.add('loaded'); };
-      img.onerror = function () {
-        if (p.fallback && img.src.indexOf(p.fallback) === -1) { img.src = p.fallback; }
-        else { img.classList.add('loaded'); }
-      };
-      if (!(p.width && p.height)) img.style.height = 'auto';   // native ratio when dims unknown
-      img.src = p.image;
-      a.appendChild(img);
+      if (p.isVideo && p.video) {
+        var v = document.createElement('video');
+        v.className = 'tilemedia';
+        v.muted = true; v.loop = true; v.playsInline = true; v.preload = 'none';
+        v.setAttribute('muted', ''); v.setAttribute('playsinline', '');
+        v.dataset.poster = p.image; v.dataset.src = p.video;
+        v.addEventListener('playing', function () { v.classList.add('loaded'); });
+        a.appendChild(v);
+        wallVideos.push(v);
+      } else {
+        var img = new Image();
+        img.className = 'tilemedia';
+        img.loading = 'lazy';
+        img.decoding = 'async';
+        img.referrerPolicy = 'no-referrer';
+        img.alt = (p.caption || 'Melodi Marsh').slice(0, 80);
+        img.onload = function () { img.classList.add('loaded'); };
+        img.onerror = function () {
+          if (p.fallback && img.src.indexOf(p.fallback) === -1) { img.src = p.fallback; }
+          else { img.classList.add('loaded'); }
+        };
+        img.src = p.image;
+        a.appendChild(img);
+      }
 
       if (p.isVideo) {
         var play = document.createElement('span');
@@ -275,7 +356,42 @@
     });
     wall.appendChild(frag);
     wall.removeAttribute('aria-busy');
+    syncVideos();
   }
+
+  // ---- lightbox: view / play a post on the site (no Instagram detour) ----
+  var lb = document.getElementById('lightbox');
+  var lbStage = lb.querySelector('.lb-stage');
+  var lbCap = lb.querySelector('.lb-cap');
+  var lbIg = lb.querySelector('.lb-ig');
+
+  function openLightbox(p) {
+    lbStage.innerHTML = '';
+    if (p.isVideo && p.video) {
+      var v = document.createElement('video');
+      v.src = p.video; v.poster = p.image;
+      v.controls = true; v.autoplay = true; v.loop = true; v.playsInline = true;
+      v.setAttribute('playsinline', '');
+      lbStage.appendChild(v);
+    } else {
+      var im = document.createElement('img');
+      im.src = p.image; im.alt = (p.caption || 'Melodi Marsh');
+      lbStage.appendChild(im);
+    }
+    lbCap.textContent = (p.caption || '').trim();
+    lbIg.href = p.permalink || 'https://www.instagram.com/melodi.marsh/';
+    document.body.classList.add('lb-open');
+    lb.hidden = false;
+    [].forEach.call(document.querySelectorAll('.wall video'), function (vv) { vv.pause(); });
+  }
+  function closeLightbox() {
+    lb.hidden = true;
+    document.body.classList.remove('lb-open');
+    lbStage.innerHTML = '';   // stops/unloads the lightbox video
+  }
+  lb.querySelector('.lb-close').addEventListener('click', closeLightbox);
+  lb.addEventListener('click', function (e) { if (e.target === lb) closeLightbox(); });
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && !lb.hidden) closeLightbox(); });
 
   function luma(c) {
     var d = String(c).split(',').map(Number);
