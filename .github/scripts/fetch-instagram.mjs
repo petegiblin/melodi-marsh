@@ -72,6 +72,9 @@ for (const m of media) {
 
   posts.push({
     image: `${MEDIA_DIR}/${file}`,
+    // Instagram's MP4 for video posts (expires, but the feed refreshes every 6h
+    // and the renderer falls back to the still image). Used for silent autoplay.
+    video: isVideo ? (m.media_url || null) : null,
     permalink: m.permalink || null,
     caption: (m.caption || "").replace(/\s+/g, " ").trim().slice(0, 140),
     isVideo,
