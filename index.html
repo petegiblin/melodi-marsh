@@ -59,22 +59,33 @@
      so nothing is square-cropped. */
   .feed{ padding:0; }
   .wall{
-    column-count:3;
-    column-gap:var(--gap);
-    padding:var(--gap) var(--gap) 0;
+    column-count:2;
+    column-gap:5vw;
+    padding:var(--gap) 5vw 0;
   }
-  @media(max-width:900px){ .wall{ column-count:2; } }
-  @media(max-width:560px){ .wall{ column-count:1; } }
+  @media(max-width:760px){ .wall{ column-count:1; column-gap:0; padding:var(--gap) 22px 0; } }
 
   .tile{
     position:relative;
     display:block;
     break-inside:avoid;
-    margin-bottom:var(--gap);
+    width:100%;
+    margin:0 0 5vh;
     overflow:hidden;
-    background:#111;                 /* swapped for the post's dominant colour via JS */
+    background:#e7e4df;              /* swapped for the post's dominant colour via JS */
     text-decoration:none;
     color:#fff;
+  }
+  /* Loose gallery hang: vary each tile's width + nudge its alignment so the wall
+     reads as an organic, varying-size arrangement rather than a rigid grid. */
+  .tile:nth-of-type(6n+1){ width:100%; }
+  .tile:nth-of-type(6n+2){ width:70%; margin-left:auto; }
+  .tile:nth-of-type(6n+3){ width:86%; }
+  .tile:nth-of-type(6n+4){ width:62%; }
+  .tile:nth-of-type(6n+5){ width:92%; margin-left:auto; }
+  .tile:nth-of-type(6n+6){ width:78%; }
+  @media(max-width:760px){
+    .wall .tile{ width:88% !important; margin:0 auto 7vh !important; }
   }
   .tile img{
     width:100%; height:100%; display:block;
