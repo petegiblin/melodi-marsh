@@ -43,3 +43,25 @@ jobs:
             git commit -m "Refresh Instagram feed [skip ci]"
             git push
           fi
+
+      - name: Keep the Instagram token alive (auto-renew)
+        env:
+          IG_TOKEN: ${{ secrets.IG_TOKEN }}
+          GH_TOKEN: ${{ secrets.GH_PAT }}
+          REPO: ${{ github.repository }}
+        run: |
+          # The IG long-lived token lasts 60 days but can be refreshed (no app
+          # secret needed). Refreshing resets the clock to 60 days, so doing this
+          # on a schedule keeps it alive forever. IG only allows refresh once the
+          # token is >24h old, so early runs no-op gracefully.
+          if [ -z "$IG_TOKEN" ] || [ -z "$GH_TOKEN" ]; then
+            echo "Missing IG_TOKEN or GH_PAT — skipping renew."; exit 0
+          fi
+          NEW=$(curl -s "https://graph.instagram.com/refresh_access_token?grant_type=ig_refresh_token&access_token=$IG_TOKEN" \
+                | python3 -c "import sys,json;print(json.load(sys.stdin).get('access_token',''))" 2>/dev/null)
+          if [ -n "$NEW" ] && [ "$NEW" != "$IG_TOKEN" ]; then
+            printf '%s' "$NEW" | gh secret set IG_TOKEN -R "$REPO"
+            echo "Renewed IG_TOKEN (+60 days)."
+          else
+            echo "No renewal this run (token <24h old or already current) — fine."
+          fi
