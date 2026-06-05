@@ -64,18 +64,19 @@
      so nothing is square-cropped. */
   .feed{ padding:0; }
   .wall{
-    column-count:2;
-    column-gap:5vw;
-    padding:var(--gap) 5vw 0;
+    column-count:3;
+    column-gap:3vw;
+    padding:var(--gap) 3.5vw 0;
   }
-  @media(max-width:760px){ .wall{ column-count:1; column-gap:0; padding:var(--gap) 22px 0; } }
+  @media(max-width:1080px){ .wall{ column-count:2; column-gap:4vw; } }
+  @media(max-width:680px){ .wall{ column-count:1; column-gap:0; padding:var(--gap) 22px 0; } }
 
   .tile{
     position:relative;
     display:block;
     break-inside:avoid;
     width:100%;
-    margin:0 0 5vh;
+    margin:0 0 3.5vh;
     overflow:hidden;
     background:#e7e4df;              /* swapped for the post's dominant colour via JS */
     text-decoration:none;
