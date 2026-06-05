@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Melodi Marsh — Connect Instagram</title>
+<style>
+  *{box-sizing:border-box;}
+  body{font-family:-apple-system,BlinkMacSystemFont,'Archivo',sans-serif;background:#fff;color:#0c0c0c;
+       margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;}
+  .card{max-width:540px;width:100%;text-align:center;}
+  h1{font-size:19px;font-weight:500;letter-spacing:0.04em;text-transform:uppercase;margin:0 0 10px;}
+  p{font-size:14px;line-height:1.65;color:#555;margin:0 0 22px;}
+  .code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px;line-height:1.5;
+        word-break:break-all;background:#f5f4f2;border:1px solid #e2ded8;border-radius:10px;
+        padding:18px;margin:0 0 16px;user-select:all;}
+  button{font:inherit;font-size:12px;letter-spacing:0.08em;text-transform:uppercase;background:#0c0c0c;
+         color:#fff;border:0;border-radius:10px;padding:14px 26px;cursor:pointer;transition:opacity .2s;}
+  button:active{opacity:.7;}
+  small{display:block;margin-top:22px;color:#aaa;font-size:12px;letter-spacing:0.04em;}
+  .err h1{color:#c0392b;}
+</style>
+</head>
+<body>
+<div class="card" id="card">
+  <h1>Almost done&nbsp;✓</h1>
+  <p>Copy the code below and send it to Pete. That's the last step — you can close this page afterwards.</p>
+  <div class="code" id="code">…</div>
+  <button id="copy">Copy code</button>
+  <small>Melodi Marsh · connecting Instagram</small>
+</div>
+<script>
+  (function () {
+    var params = new URLSearchParams(location.search);
+    var code = params.get('code');
+    var err = params.get('error_message') || params.get('error_description') || params.get('error');
+    var card = document.getElementById('card');
+
+    if (code) {
+      code = code.replace(/#_+$/, '').trim();
+      document.getElementById('code').textContent = code;
+      var btn = document.getElementById('copy');
+      btn.onclick = function () {
+        var done = function () { btn.textContent = 'Copied ✓'; };
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(code).then(done, selectText);
+        } else { selectText(); }
+      };
+      function selectText() {
+        var el = document.getElementById('code'), r = document.createRange();
+        r.selectNodeContents(el);
+        var s = window.getSelection(); s.removeAllRanges(); s.addRange(r);
+        btn.textContent = 'Select all + copy';
+      }
+    } else {
+      card.className = 'card err';
+      card.innerHTML = '<h1>No code came through</h1><p>' +
+        (err ? ('Instagram said: ' + err) : 'Instagram didn’t return an authorization code.') +
+        '<br><br>Ask Pete to resend the link and try once more.</p>';
+    }
+  })();
+</script>
+</body>
+</html>
