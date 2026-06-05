@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Melodi Marsh — Info</title>
+
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png" />
+<link rel="icon" type="image/png" sizes="16x16" href="favicon-16.png" />
+<link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png" />
+<link rel="icon" href="favicon.ico" sizes="any" />
+
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Karla:wght@400;500;700&display=swap');
+
+  :root{ --bg:#ffffff; --ink:#0c0c0c; }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  html,body{background:var(--bg);color:var(--ink);}
+  body{
+    font-family:'Karla',-apple-system,sans-serif;
+    font-size:12px;
+    letter-spacing:0.06em;
+    -webkit-font-smoothing:antialiased;
+  }
+
+  /* ---------- NAV (plain dark on this white page) ---------- */
+  header{
+    position:fixed; top:0; left:0; right:0;
+    display:flex; align-items:center; justify-content:space-between;
+    padding:14px 16px;
+    color:var(--ink); z-index:100;
+    text-transform:uppercase;
+  }
+  .brand{ font-weight:500; font-size:13px; letter-spacing:0.04em; }
+  .brand a{ color:inherit; text-decoration:none; }
+  nav{ display:flex; gap:22px; }
+  nav a{ color:inherit; text-decoration:none; font-size:11px; letter-spacing:0.1em; transition:opacity .2s; }
+  nav a:hover{ opacity:0.5; }
+
+  /* ---------- CONTENT ---------- */
+  main{
+    max-width:620px;
+    margin:0 auto;
+    padding:24vh 24px 80px;
+    min-height:100vh;
+  }
+  .block{ margin-bottom:54px; }
+  h3{
+    font-size:11px; letter-spacing:0.16em; text-transform:uppercase;
+    color:#999; margin-bottom:18px;
+  }
+  .bio{ font-size:15px; line-height:1.85; letter-spacing:0.01em; }
+  .bio + .bio{ margin-top:1.1em; }
+  .bookings{ text-transform:uppercase; font-size:11px; letter-spacing:0.1em; line-height:2.1; }
+  .bookings a{ color:var(--ink); text-decoration:none; border-bottom:1px solid var(--ink); }
+
+  footer{
+    display:flex; justify-content:space-between;
+    padding:18px 16px;
+    text-transform:uppercase; font-size:10px; letter-spacing:0.12em; color:#999;
+  }
+  footer a{ color:inherit; text-decoration:none; }
+  footer a:hover{ color:var(--ink); }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand"><a href="index.html">Melodi Marsh</a></div>
+  <nav>
+    <a href="index.html">Index</a>
+    <a href="https://www.instagram.com/melodi.marsh/" target="_blank" rel="noopener">Instagram</a>
+  </nav>
+</header>
+
+<main>
+  <section class="block">
+    <h3>About</h3>
+    <p class="bio">Melodi Marsh is a multidisciplinary artist from Camden Town, London. Known for her raw, storytelling spoken word performances, she explores themes of healing and truth alongside a career in commercial modelling. Melodi turns identity, longing, and the thresholds in between into verse made to be heard aloud—intimate, unguarded, and alive across page, stage, and screen.</p>
+    <p class="bio">Since launching her artistic journey in 2020, she has performed at notable UK venues and festivals. As a model, she has worked with global brands including Nike, Adidas, Converse, and Charlotte Tilbury, and has been featured in top-tier publications such as Notion, Wonderland, and Black Magazine (New Zealand).</p>
+  </section>
+
+  <section class="block bookings">
+    <h3>Bookings</h3>
+    Performance · Features · Workshops · Commissions<br><br>
+    <a href="mailto:hello@melodimarsh.com">hello@melodimarsh.com</a>
+  </section>
+</main>
+
+<footer>
+  <span>© Melodi Marsh 2026</span>
+  <a href="https://www.instagram.com/melodi.marsh/" target="_blank" rel="noopener">@melodi.marsh</a>
+</footer>
+
+</body>
+</html>
